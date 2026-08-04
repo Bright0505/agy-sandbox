@@ -1,0 +1,18 @@
+services:
+  agy-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.agy
+    image: agy-sandbox:latest
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ${WORKSPACE_DIR:-.}:/workspace
+      - ./.agy-config:/home/agy/.gemini/antigravity-cli
+    env_file:
+      - path: .env.agy
+        required: false
+    working_dir: /workspace
+    stdin_open: true
+    tty: true

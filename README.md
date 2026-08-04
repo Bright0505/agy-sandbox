@@ -1,0 +1,105 @@
+# AGY Sandbox
+
+給 AGY 專用的隔離執行環境。這個 repo 是 template:`Dockerfile.agy` 只負責 AGY 自己的 sandbox,跟語言/框架無關;實際專案的執行環境(`Dockerfile`、`docker-compose.yml`)由套用此 template 的專案自行準備。
+
+## 目錄結構
+
+```
+Dockerfile.agy                  AGY sandbox image
+docker-compose.agy.yml          啟動 sandbox 的主要 compose 檔
+docker-compose.agy.network.yml  選用 overlay：讓 sandbox 加入專案自己的網路
+scripts/init-firewall.sh           容器啟動時設定的網路白名單
+scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使用者
+.env.agy.example                GEMINI_API_KEY 範本
+.agy-config/                    (執行時產生) 專案專屬的 AGY 設定/登入狀態
+```
+
+## 快速開始
+
+支援兩種驗證方式,擇一即可:
+
+**方式一:AGY 登入(不需要 API key)**
+
+```bash
+docker compose -f docker-compose.agy.yml run --rm agy-sandbox agy auth login
+```
+
+`.env.agy` 是選用的(`env_file` 已設為 `required: false`),不存在也能正常啟動。照著終端機印出的網址在主機瀏覽器上完成登入、貼回驗證碼即可,不需要對外開任何 port。
+
+**方式二:Gemini Console API key**
+
+```bash
+cp .env.agy.example .env.agy   # 填入 GEMINI_API_KEY
+docker compose -f docker-compose.agy.yml run --rm agy-sandbox claude
+```
+
+不論用哪一種方式,登入後的 session 都會存在專案內的 `.agy-config/`,不會動到主機全域的 `~/.gemini/antigravity-cli`,也不會跟其他專案共用。`.agy-config/` 與 `.env.agy` 都已加入 `.gitignore`,不會被提交。
+
+## 設計重點
+
+- **基底**：`node:24-bookworm-slim`(Node 24 LTS)。AGY CLI 本身是 Node 程式,因此不論專案語言是什麼,sandbox 都需要 Node——這跟專案自己的執行環境版本無關。
+- **非 root 使用者**：容器以 `claude`(uid/gid 1000)執行實際指令,只有防火牆設定階段短暫使用 root。
+- **網路白名單**：`init-firewall.sh` 預設擋掉所有對外連線,只放行 AGY 實際需要的網域(Gemini API、`platform.claude.com` 登入/token 交換、GitHub、npm、PyPI 等)。任何未列在白名單的網域一律被擋。
+- **不提供 docker socket / Docker-in-Docker**：sandbox 內刻意不能執行 `docker build`/`docker compose up` 之類的指令。掛載 host 的 `docker.sock` 等同給予 host root 權限,會讓前述的防火牆與非 root 隔離全部失去意義。專案自己的容器建置/啟動應該在 sandbox 外(人工或 CI)執行。
+
+## 連接專案自己的服務(跑測試)
+
+如果專案已經用自己的 `docker-compose.yml` 啟動了 API、DB 等服務,想讓 sandbox 連過去執行測試,可以用 `docker-compose.agy.network.yml` 這個選用 overlay:
+
+1. 專案的 `docker-compose.yml` 把網路取一個固定名稱,不依賴 compose 專案/目錄名稱:
+   ```yaml
+   networks:
+     default:
+       name: app-net
+   ```
+2. 啟動專案本身：
+   ```bash
+   docker compose -f docker-compose.yml up -d
+   ```
+3. 啟動 sandbox 並加入同一個網路：
+   ```bash
+   docker compose -f docker-compose.agy.yml \
+                  -f docker-compose.agy.network.yml \
+                  run --rm agy-sandbox bash
+   ```
+   容器內可以用服務名稱當 hostname,例如 `curl http://api:3000/health`。
+
+網路名稱預設是 `app-net`,可用 `APP_NETWORK_NAME=my-net` 覆寫。`init-firewall.sh` 只會放行 sandbox 實際加入的網路子網段,不會因此打開整個私有網段(RFC1918),對外連線的白名單規則不受影響。
+
+## Template 用法
+
+套用這個 template 的專案，只需要:
+
+1. 保留 `Dockerfile.agy`、`docker-compose.agy.yml`、`docker-compose.agy.network.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
+2. 依專案實際的語言/框架，另外撰寫自己的 `Dockerfile`、`docker-compose.yml`（可選擇性搭配上方「連接專案自己的服務」章節，讓 sandbox 連得到）。
+3. 需要調整白名單網域時，編輯 `scripts/init-firewall.sh` 裡的 `ALLOWED_DOMAINS`。
+
+## 作為 Git Submodule 掛進其他專案
+
+想把這個 sandbox 掛進一個原本沒有 AGY 的既有專案，不用複製檔案，用 submodule 引用即可：
+
+```bash
+# 在主專案根目錄下執行
+git submodule add git@github.com:Bright0505/agy-sandbox.git agy-sandbox
+```
+
+`Dockerfile.agy`、`.agy-config/`、`.env.agy` 這些路徑都是相對於 `docker-compose.agy.yml` 檔案本身的位置解析，所以不管是獨立使用還是當 submodule 用，都不需要修改——它們永遠跟著 sandbox 一起走。唯一需要對外覆寫的是 `/workspace` 要掛載的目錄，因為 submodule 情境下要掛的是主專案根目錄，而不是 submodule 自己的目錄，用 `WORKSPACE_DIR` 環境變數指定（建議用絕對路徑 `$(pwd)`，避免相對路徑解析的疑慮）：
+
+```bash
+# 在主專案根目錄下執行
+cp agy-sandbox/.env.agy.example agy-sandbox/.env.agy   # 填入 GEMINI_API_KEY
+
+WORKSPACE_DIR=$(pwd) docker compose \
+    -f agy-sandbox/docker-compose.agy.yml \
+    run --rm agy-sandbox claude
+```
+
+需要連接主專案自己的服務跑測試時，疊加 `docker-compose.agy.network.yml` 一起使用即可，用法跟上方「連接專案自己的服務」章節相同。
+
+之後 sandbox template 本身有更新，在主專案裡執行：
+
+```bash
+git submodule update --remote agy-sandbox
+```
+
+submodule 會把版本釘在特定 commit，更新前建議先看一下 template 端的變更再決定要不要跟進。
