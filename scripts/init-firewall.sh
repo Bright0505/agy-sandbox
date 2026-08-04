@@ -41,7 +41,10 @@ done
 ipset create allowed-domains hash:ip
 
 ALLOWED_DOMAINS=(
+    oauth2.googleapis.com
     api.gemini.google.com
+    generativelanguage.googleapis.com
+    lh3.googleusercontent.com
     antigravity.google
     sentry.io
     github.com
@@ -56,9 +59,18 @@ ALLOWED_DOMAINS=(
 
 for domain in "${ALLOWED_DOMAINS[@]}"; do
     ips="$(dig +short A "$domain" | grep -E '^[0-9.]+$' || true)"
+    first_ip=""
     for ip in $ips; do
         ipset add allowed-domains "$ip" 2>/dev/null || true
+        if [ -z "$first_ip" ]; then
+            first_ip="$ip"
+        fi
     done
+    # Force the container to use the exact IP we just whitelisted,
+    # preventing timeout errors caused by DNS load balancing returning a different IP later.
+    if [ -n "$first_ip" ]; then
+        echo "$first_ip $domain" >> /etc/hosts
+    fi
 done
 
 iptables -A OUTPUT -m set --match-set allowed-domains dst -p tcp --dport 443 -j ACCEPT
