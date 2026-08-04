@@ -9,6 +9,7 @@ services:
       - NET_RAW
     volumes:
       - ${WORKSPACE_DIR:-.}:/workspace
+      - ./scripts:/workspace/scripts:ro
       - ./.agy-config:/home/agy/.gemini/antigravity-cli
     env_file:
       - path: .env.agy
