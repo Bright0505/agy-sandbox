@@ -33,7 +33,10 @@ RUN if getent group "$USER_GID" >/dev/null; then \
         useradd --uid "$USER_UID" --gid "$USER_GID" -m -s /bin/bash "$USERNAME"; \
     fi
 
-RUN npm install -g @google/antigravity-cli
+# TODO: Install agy CLI. 
+# @google/antigravity-cli is not on npm. Depending on how agy is distributed,
+# you may need to download the Linux binary directly, e.g.:
+# RUN curl -fsSL https://<agy-binary-url> -o /usr/local/bin/agy && chmod +x /usr/local/bin/agy
 
 # Project-scoped config: this directory is bind-mounted from the host project
 # folder (see docker-compose.yml), so login/session state never touches the
