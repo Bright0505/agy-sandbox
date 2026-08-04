@@ -1,4 +1,4 @@
 .git
-.claude-config
-.env.claude
+.agy-config
+.env.agy
 node_modules
