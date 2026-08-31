@@ -2,7 +2,7 @@
 
 讀一次就好，之後當字典用。
 
-這份給**人**看。`AGENTS.md` 是給 Antigravity (agy) 看的同一套規範的執行版本 ——
+這份給**人**看。`AGENTS.md` 是給 Antigravity 看的同一套規範的執行版本 ——
 你不需要背它，但值得知道它存在，因為 Antigravity 的行為是照那份走的。
 
 ---
@@ -235,7 +235,7 @@
 | 這個專案自己踩過哪些坑 | `docs/KNOWN-ISSUES.md` |
 | 某個決定當初為什麼那樣決 | `docs/DECISIONS.md` |
 | 某個任務當初做了什麼 | `docs/tasks/` —— 按時間讀是了解專案演進最快的方式 |
-| 怎麼在隔離環境裡跑 Antigravity (agy) | `README.md` |
+| 怎麼在隔離環境裡跑 Antigravity | `README.md` |
 
 ### 七個 skill 分別管什麼
 
