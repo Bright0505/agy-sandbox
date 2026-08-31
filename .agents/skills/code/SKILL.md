@@ -1,0 +1,73 @@
+---
+name: code
+description: 寫程式碼 — 修改既有程式碼的五個檢查點：impact analysis、syntactic vs semantic equivalence、dead code elimination、mutation testing、scope creep 防線。展開 AGENTS.md 鐵則 1-3 在「動手寫程式碼」這個場景的落地。當要 refactor 既有函式/類別的 API 或呼叫方式、跨多個 call site 套用同一種改法、或改動觸發了看似不相關的 pre-existing defect 時使用。
+---
+
+# 寫程式碼
+
+`AGENTS.md` 已定義鐵則 1-3。`verify` 講「怎麼證明改對了」，
+本 skill 講**動手前怎麼確認改法是對的，以及過程中怎麼守住範圍**。
+
+五個檢查點，按時間順序排。
+
+---
+
+## 1. 估算範圍時：impact analysis
+
+Spec（migration guide、release note、型別標註）宣告的是**契約**，
+implementation 才是**實際行為**。兩者的落差直接決定 blast radius。
+
+凡是**會讓範圍變動一倍以上**的關鍵假設，讀一次實作再定案，
+不要憑 spec 字面估一個範圍再被迫重估。
+
+---
+
+## 2. 套用到多處時：syntactic similarity ≠ semantic equivalence
+
+同一種改法套 N 個 call site，只降低了「猜改法對不對」的成本，
+**不能把 full verification 降級成 spot check** —— 長得一樣的地方，
+可能各自帶著只有那裡才有的語意差異。
+
+---
+
+## 3. 改完後：dead code elimination
+
+修改 signature 或呼叫方式，會讓支撐舊寫法的 import／型別／分支變成
+unreachable，而它們**不會主動報錯**。改完掃一次該檔頂部，交給 linter 確認 ——
+規則通常本來就開著，但沒跑就會進 commit。
+
+---
+
+## 4. 驗證時：mutation testing
+
+`verify` 要求新測試要故意弄壞一次確認轉紅。改既有程式碼時，
+最可靠的 mutant 不是手寫的變體，是**真正的舊版**：
+
+```bash
+# ⚠️ 前置：改動必須已 commit（或 stash）。工作區還有未 commit 的修改時，
+#    下面第一行會直接覆蓋掉它，而還原指令只會還原到 HEAD ——
+#    正在寫的東西會靜默消失，且測試停在紅燈。
+git checkout <base> -- <檔案>   # 舊版即 mutant
+# 跑新測試 → 應該全紅
+git checkout HEAD -- <檔案>     # 還原 → 應該全綠
+```
+
+手寫的「假設會失敗」變體是腦補出來的近似版，會失真。
+**確認 mutant 是為了正確的理由被 killed** —— 失敗訊息要對得上預期，
+不是隨便哪裡壞了也算數。
+
+---
+
+## 5. 全程：scope creep 防線
+
+改一個地方時順手發現的 pre-existing defect，判準是
+**它會不會擋住「這次改動」的 Definition of Done**，以及**修它要付多少**：
+
+| 情況 | 動作 |
+|---|---|
+| 不擋 DoD | **只記錄，不動手** |
+| 擋住 DoD，修它在原範圍內 | 修，並在回報明說「不修無法驗收」 |
+| 擋住 DoD，但修它會顯著擴大範圍 | **停下來等指示**（判準展開見 `plan` §0）|
+
+是不是這次的 regression，用 `git show <base>:<檔案>` 查證，不要憑感覺。
+不擋 DoD 卻順手修下去，就是 scope creep 在無聲發生。

@@ -1,3 +1,5 @@
 .agy-config/
 .env.agy
 .gemini/settings.local.json
+__pycache__/
+*.pyc
