@@ -2,3 +2,5 @@
 .agy-config
 .env.agy
 node_modules
+__pycache__
+*.pyc

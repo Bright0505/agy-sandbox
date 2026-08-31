@@ -1,0 +1,62 @@
+# Changelog
+
+**套用端需要知道的變更。** 每個版本控制在 ~15 行 —— 內部重構、錯字、
+上游自己的研發過程都不列。細節在該版本的 tag，以及上游的 `dev` 分支。
+
+## 版號語意
+
+| 級別 | 含義 | 套用端要做什麼 |
+|---|---|---|
+| MAJOR | 檔案結構或使用方式改變 | 動手遷移 |
+| MINOR | 規範或 skill 內容改變 | 重讀 |
+| PATCH | 錯字、腳本 bug 修正 | 不用管 |
+
+判準是**套用端要不要動手**，不是哪個檔案變了 —— 所以只動到上游發佈流程的改動
+（例如 `release` skill，套用端不會觸發它）算 **PATCH**。
+
+---
+
+## v0.1.1
+
+只動到上游自己的發佈流程，**套用端不需要做任何事**。
+
+- `release` skill 補「一次發佈的全貌」（哪一段是人、哪一段是腳本），
+  以及 Template repository 開關 —— 那個開關沒打開的話，骨架設計會空轉，
+  而且**沒有任何症狀**
+
+---
+
+## v0.1.0
+
+第一個可發佈的版本。
+
+- **執行環境** —— Antigravity (agy) 專用 sandbox（`node:24-bookworm-slim`、非 root、
+  不給 docker socket）。對外連線預設全擋，只放行需要的網域（GoogleGeminiAntigravity API、
+  GitHub、GitLab、npm、PyPI 等），自架站台與額外網域都用 `.env.agy` 設定、不必改檔案。
+  容器內可 commit／push GitHub 與 GitLab，而 **token 不落地**。可自動接上專案自己的
+  docker 網路用服務名跑測試。可當 git submodule 掛進既有專案
+- **開發規範** —— `ONBOARDING.md`（人看）與 `AGENTS.md``AGENTS.md`（常駐執行）兩份，
+  七個 skill 按時機載入，`docs` 提供任務／事故／決議三份骨架與一支結構檢查腳本
+- **修正** —— `scriptstest-*.sh` 在 macOS host（bash 3.2）跑得完，兩個獨立的
+  Linux-only 依賴。README 補「腳本的執行層」：**不需要 docker ≠ 不需要 Linux**
+- **`docs` 交付為空骨架** —— 上游自己的紀錄不隨產品出貨，你的編號從 1 開始
+
+### 已知未驗
+
+- `sandbox.sh` 只在 macOS／Docker Desktop 驗過，**未在 Linux host 驗**
+- `APP_NETWORK_NAME` 指向**非 compose 建立**的網路只驗過「不存在時報錯」，
+  沒驗過「存在時接得上」—— 殘餘風險在 driver／IPAM 層
+
+---
+
+## 上游自己的研發紀錄在哪
+
+出貨的 `docs` 是空骨架。上游的任務檔、事故紀錄、決議紀錄活在上游 repo 的
+**`dev` 分支**，未銷毀：
+
+```bash
+git clone -b dev https:github.comBright0505agy-sandbox tmpagy-upstream
+```
+
+⚠️ Template 產生的 repo **不帶 commit 歷史**，所以在你自己的 repo 裡
+`git log` 找不到那些紀錄 —— 要去上游拿。
